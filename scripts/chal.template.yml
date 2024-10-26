@@ -1,0 +1,102 @@
+name: Chall-<CHALL_NAME>
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "challenges/<CATE_DIR>/<CHALL_DIR_NAME>/**"
+  pull_request:
+    paths:
+      - "challenges/<CATE_DIR>/<CHALL_DIR_NAME>/**"
+  workflow_dispatch:
+
+env:
+  NAME: <CHALL_DIR_NAME>
+  CATEGORY: <CATE_DIR>
+  REGISTRY: ghcr.io
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Challenge Check
+        run: |
+          python3 scripts/gen_action.py -c ${{ env.CATEGORY }} -d ${{ env.NAME }} -s || exit 1
+
+      - name: Break on any changes
+        run: |
+          git diff --exit-code || exit 1
+
+  challenge-build:
+    runs-on: ubuntu-latest
+    needs: preflight
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      #<CUSTOM_STEPS>
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}/${{ env.NAME }}
+          tags: |
+            latest
+
+      - name: Run pre-build script
+        working-directory: challenges/${{ env.CATEGORY }}/${{ env.NAME }}/build
+        if: ${{ hashFiles(format('challenges/{0}/{1}/build/pre-build.sh', env.CATEGORY, env.NAME)) != '' }}
+        run: |
+          chmod +x pre-build.sh
+          ./pre-build.sh
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: challenges/${{ env.CATEGORY }}/${{ env.NAME }}/build
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          push: true
+
+      - name: Run post-build script
+        working-directory: challenges/${{ env.CATEGORY }}/${{ env.NAME }}/build
+        if: ${{ hashFiles(format('challenges/{0}/{1}/build/post-build.sh', env.CATEGORY, env.NAME)) != '' }}
+        run: |
+          chmod +x post-build.sh
+          ./post-build.sh
+
+      - name: Upload attachments
+        uses: actions/upload-artifact@v4
+        if: ${{ hashFiles(format('challenges/{0}/{1}/attachments/**', env.CATEGORY, env.NAME)) != '' }}
+        with:
+          name: ${{ env.NAME }}
+          path: challenges/${{ env.CATEGORY }}/${{ env.NAME }}/attachments/
+
+      - name: Prune old packages
+        uses: dataaxiom/ghcr-cleanup-action@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          package: ${{ github.event.repository.name }}/${{ env.NAME }}
+          validate: true
+          dry-run: false
+          delete-untagged: true
+          delete-ghost-images: true
+          delete-partial-images: true

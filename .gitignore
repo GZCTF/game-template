@@ -1,0 +1,6 @@
+.DS_Store
+
+**/target
+
+**/*.bak
+**/__pycache__
