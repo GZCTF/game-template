@@ -15,21 +15,21 @@ For each challenge, a separate branch should be created, named `<category>/<chal
 
 ## Challenges
 
-| | Title | Category  | Difficulty | Author |
-| :-: | :- | :- | :- | :- |
+|     | Title | Category | Difficulty | Author |
+| :-: | :---- | :------- | :--------- | :----- |
 
 ### Statistics
 
 | Category | Count | Ratio |
-| :- | :- | :- |
+| :------- | :---- | :---- |
 
 | Difficulty | Count | Ratio |
-| :- | :- | :- |
-| Baby | 0 | 0.00% |
-| Trivial | 0 | 0.00% |
-| Easy | 0 | 0.00% |
-| Normal | 0 | 0.00% |
-| Medium | 0 | 0.00% |
-| Hard | 0 | 0.00% |
-| Expert | 0 | 0.00% |
-| Insane | 0 | 0.00% |
+| :--------- | :---- | :---- |
+| Baby       | 0     | 0.00% |
+| Trivial    | 0     | 0.00% |
+| Easy       | 0     | 0.00% |
+| Normal     | 0     | 0.00% |
+| Medium     | 0     | 0.00% |
+| Hard       | 0     | 0.00% |
+| Expert     | 0     | 0.00% |
+| Insane     | 0     | 0.00% |
