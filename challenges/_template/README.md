@@ -33,9 +33,11 @@ Only 4 files are allowed to be in the root of the ./build folder:
 - pre-build.sh (optional, to run before building the challenge)
 - post-build.sh (optional, to run after building the challenge)
 
-And you can add files starting with `.git` to your challenge folder.
+Deployment configuration example:
 
-In which you can config gitattributes, gitignore, etc.
+| Port | CPU(0.1c) | Memory(1M) | Disk(1M) |
+| ---- | --------- | ---------- | -------- |
+| 70   | 1         | 64         | 128      |
 
 -->
 

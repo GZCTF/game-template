@@ -1,16 +1,18 @@
 # Use `challenge-base`
-FROM ghcr.io/gzctf/challenge-base/xinetd:alpine
+FROM ghcr.io/gzctf/challenge-base/socat:alpine
 
 # For a pwn challenge:
 
-# FROM ubuntu:22.04 AS builder
-# FROM ghcr.io/gzctf/challenge-base/xinetd:alpine
+# FROM ubuntu:24.04 AS builder
+# FROM ghcr.io/gzctf/challenge-base/socat:alpine
 
-# COPY src/init.sh /init.sh
-# COPY src/xinetd.conf /etc/xinetd.conf
+# init script is used to set up the environment, put the flag in the right place, etc.
+# COPY --chmod=500 src/init.sh /init.sh
 
-# RUN chmod +x /init.sh && \
-#     chown -R ctf:ctf /home/ctf && \
+# run script is used to start the challenge, it is executed by socat
+# COPY --chmod=555 src/run.sh /run.sh
+
+# RUN chown -R ctf:ctf /home/ctf && \
 #     chmod -R 750 /home/ctf && \
 #     cp -R /lib* /home/ctf && \
 #     mkdir /home/ctf/lib64  && \
@@ -35,7 +37,7 @@ FROM ghcr.io/gzctf/challenge-base/xinetd:alpine
 # COPY --from=builder /usr/sbin/chroot /usr/sbin/
 # COPY --chown=ctf:ctf --chmod=500 remember_it_0 /home/ctf/remember_it_0
 
-# CMD ["xinetd", "-dontfork"]
+# CMD [ "/init.sh" ]
 
 # ----------------------------
 
@@ -43,11 +45,13 @@ FROM ghcr.io/gzctf/challenge-base/xinetd:alpine
 
 # FROM ghcr.io/gzctf/challenge-base/gmpy2:alpine
 
-# COPY src/xinetd.conf /etc/xinetd.conf
 # COPY --chown=ctf:ctf src/chall.py /home/ctf/chall.py
-# COPY --chown=ctf:ctf --chmod=500 src/init.sh /init.sh
 
-# USER ctf
-# WORKDIR /home/ctf
-
-# CMD /init.sh && socat TCP-LISTEN:1337,reuseaddr,fork EXEC:"python3 chall.py"
+# You can ignore the following lines, they are set in base images
+## init script is used to set up the environment, put the flag in the right place, etc.
+## COPY --chmod=500 src/init.sh /init.sh
+## run script is used to start the challenge, it is executed by socat
+## COPY --chmod=555 src/run.sh /run.sh
+## USER ctf
+## WORKDIR /home/ctf
+## CMD [ "/init.sh" ]

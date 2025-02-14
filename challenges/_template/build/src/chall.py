@@ -1,4 +1,4 @@
 with open("/home/ctf/flag", "r") as f:
-    flag = f.read()
+    flag = f.read().strip()
 
-print("flag = ", flag)
+print(f"flag: {flag}")

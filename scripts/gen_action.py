@@ -77,7 +77,7 @@ def check_info(chall_dir):
     if not os.path.exists(f"{chall_dir}/README.md"):
         raise Exception(f"README.md does not exist in {chall_dir}")
 
-    name, author, difficulty, category, flag = get_challenge_info(
+    name, author, difficulty, category, flag, deploy = get_challenge_info(
         f"{chall_dir}/README.md"
     )
 
@@ -100,6 +100,9 @@ def check_info(chall_dir):
         )
 
     info(f"{'Category'.ljust(12)}: {category}({short_cate[category]})")
+
+    if deploy:
+        info(f"{'Deployment'.ljust(12)}: {format_deploy_config(deploy)}")
 
     if flag:
         info(f"{'Flag'.ljust(12)}: {flag}")
@@ -135,17 +138,19 @@ def check_info(chall_dir):
 def gen_chall_action(chall_dir):
     global ACTION_TEMPLATE
 
-    name, _, _, category, _ = get_challenge_info(f"{chall_dir}/README.md")
+    name, _, _, category, _, _ = get_challenge_info(f"{chall_dir}/README.md")
 
     info("Generating action...")
 
     chall_dir_name = chall_dir.split("/")[-1]
     chall_cate_dir = chall_dir.split("/")[-2]
+    chall_file_name = f"{short_cate[category]}.{chall_dir_name}"
 
     # replace placeholders with actual values
     template = ACTION_TEMPLATE.replace("<CHALL_DIR_NAME>", chall_dir_name)
     template = template.replace("<CATE_DIR>", chall_cate_dir)
     template = template.replace("<CHALL_NAME>", name)
+    template = template.replace("<CHALL_FILE_NAME>", chall_file_name)
 
     if os.path.exists(f"{chall_dir}/build/custom.yml"):
         info("Custom steps found, adding to action...")
