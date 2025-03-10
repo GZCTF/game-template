@@ -1,6 +1,10 @@
 from utils import *
 
 
+def ratio(a, b):
+    return a / b if b != 0 else 0
+
+
 def gen_chall_table(challenges):
     table = "\n## Challenges\n\n"
     table += "| | Title | Category  | Difficulty | Author |\n"
@@ -23,7 +27,7 @@ def gen_chall_table(challenges):
     table += "| Category | Count | Ratio |\n"
     table += "| :- | :- | :- |\n"
     for category, num in count.items():
-        table += f"| {category} | {num} | {num / len(challenges):.2%} |\n"
+        table += f"| {category} | {num} | {ratio(num, len(challenges)):.2%} |\n"
 
     table += "\n"
 
@@ -31,7 +35,7 @@ def gen_chall_table(challenges):
     table += "| :- | :- | :- |\n"
     for diff in difficulties:
         num = count_diff.get(diff, 0)
-        table += f"| {diff} | {num} | {num / len(challenges):.2%} |\n"
+        table += f"| {diff} | {num} | {ratio(num, len(challenges)):.2%} |\n"
 
     return table
 
