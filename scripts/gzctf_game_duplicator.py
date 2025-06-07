@@ -11,19 +11,18 @@ Description:
       - Clone an existing game and all/some of its challenges.
       - Create a new empty game and populate it with challenges selected from any game.
 
-    The script preserves flags, metadata, and challenge configurations.
-    Static container challenges have their flags duplicated automatically.
+    The script preserves flags, metadata, and attachments.
+    All duplicated challenges are disabled by default.
 
 Usage:
-    Clone a game (interactive):
-        python3 gzctf_cloner.py --url http://localhost:55000 --username admin --password pass
+    Clone a game:
+        python3 gzctf_game_duplicator.py --url https://ctf.example.com --username admin --password pass
 
-    Create a new game from selected challenges:
-        python3 gzctf_cloner.py --url http://localhost:55000 --username admin --password pass --newgame
+    Create new game from selected challenges:
+        python3 gzctf_game_duplicator.py --url https://ctf.example.com --username admin --password pass --newgame
 
-    Provide a custom invite code:
-        python3 gzctf_cloner.py --url http://localhost:55000 --username admin --password pass --invite-code MYCODE123
-
+    With custom invite code:
+        python3 gzctf_game_duplicator.py --url https://ctf.example.com --username admin --password pass --invite-code MYCODE123
 """
 
 import requests
@@ -87,14 +86,15 @@ def create_game(session, base_url, title, invite_code=None):
     return resp.json()
 
 def create_challenge_minimal(session, base_url, game_id, ch_full, ch_meta):
+    score = ch_meta.get("originalScore", ch_meta.get("score", 100))
     data = {
         "title": ch_full.get("title", ch_meta["title"]),
         "category": ch_full.get("category", ch_meta.get("category", "Misc")),
         "type": ch_full.get("type", "StaticAttachment"),
-        "isEnabled": ch_full.get("isEnabled", True),
-        "score": ch_meta.get("score", 100),
-        "minScore": ch_meta.get("score", 100),
-        "originalScore": ch_meta.get("score", 100)
+        "isEnabled": False,  # Always disable by default
+        "score": score,
+        "minScore": score,
+        "originalScore": score
     }
     resp = session.post(f"{base_url}/api/edit/games/{game_id}/challenges", json=data)
     resp.raise_for_status()
@@ -129,13 +129,32 @@ def duplicate_flags(session, base_url, new_game_id, new_challenge_id, flags):
     resp = session.post(url, json=flag_data)
     resp.raise_for_status()
 
-def duplicate_selected_challenges(session, base_url, all_challenges, new_game_id):
+def duplicate_attachment(session, base_url, full_url_base, new_game_id, new_challenge_id, attachment):
+    if not attachment:
+        return
+    att_type = attachment.get("type")
+    if att_type == "Remote":
+        remote_url = f"{full_url_base}{attachment['url']}"
+    elif att_type == "Local":
+        remote_url = f"{full_url_base}{attachment['url']}"
+    else:
+        return
+    data = {
+        "attachmentType": "Remote",
+        "remoteUrl": remote_url
+    }
+    url = f"{base_url}/api/edit/games/{new_game_id}/challenges/{new_challenge_id}/attachment"
+    resp = session.post(url, json=data)
+    resp.raise_for_status()
+
+def duplicate_selected_challenges(session, base_url, full_url_base, all_challenges, new_game_id):
     for ch_meta in all_challenges:
         full = fetch_challenge_config(session, base_url, ch_meta["game_id"], ch_meta["id"])
         created = create_challenge_minimal(session, base_url, new_game_id, full, ch_meta)
         update_challenge(session, base_url, new_game_id, created["id"], full)
-        if full.get("type") == "StaticContainer" and full.get("flags"):
+        if full.get("flags"):
             duplicate_flags(session, base_url, new_game_id, created["id"], full["flags"])
+        duplicate_attachment(session, base_url, full_url_base, new_game_id, created["id"], full.get("attachment"))
         print(f" → Duplicated: {created['title']}")
 
 def main():
@@ -144,10 +163,9 @@ def main():
     parser.add_argument("--username", required=True, help="Username")
     parser.add_argument("--password", required=True, help="Password")
     parser.add_argument("--invite-code", help="Optional invite code")
-
-    parser.add_argument("--newgame", action="store_true", help="Create a new game from scratch and select challenges across all games")
-
+    parser.add_argument("--newgame", action="store_true", help="Create a new game from selected challenges")
     args = parser.parse_args()
+
     base_url = args.url.rstrip('/')
     session = login(base_url, args.username, args.password)
     games = fetch_games(session, base_url)
@@ -165,7 +183,7 @@ def main():
 
         print("\n🧩 Challenges Across All Games:")
         for ch in all_challenges:
-            print(f"{ch['id']:>3} | {ch['game_title']:<20} | {ch['title']}")
+            print(f"{ch['id']:>3} | {ch['game_title']:<20} | [{ch.get('category', '-')}] {ch['title']} ({ch.get('originalScore', ch.get('score', 0))} pts)")
 
         ids = input("\nEnter comma-separated challenge IDs to clone: ").split(",")
         selected = [ch for ch in all_challenges if str(ch["id"]) in [i.strip() for i in ids]]
@@ -178,11 +196,11 @@ def main():
         new_game = create_game(session, base_url, title, args.invite_code)
         print(f"\n✅ Created new game: {new_game['title']} (ID: {new_game['id']})")
         print(f"🔐 Invite Code: {new_game['inviteCode']}")
-        duplicate_selected_challenges(session, base_url, selected, new_game["id"])
+        duplicate_selected_challenges(session, base_url, args.url.rstrip('/'), selected, new_game["id"])
 
     else:
         print("\nAvailable Games:")
-        games.sort(key=lambda g: g["id"])  # or use g["title"].lower() to sort alphabetically
+        games.sort(key=lambda g: g["id"])
         for g in games:
             print(f"{g['id']}: {g['title']}")
 
@@ -200,10 +218,7 @@ def main():
             print("\nAvailable Challenges:")
             challenges_meta.sort(key=lambda ch: ch["id"])
             for ch in challenges_meta:
-                title = ch["title"]
-                cid = ch["id"]
-                cat = ch.get("category", "Uncategorized")
-                print(f"{cid}: [{cat}] {title}")
+                print(f"{ch['id']:>3}: [{ch.get('category', '-')}] {ch['title']} ({ch.get('originalScore', ch.get('score', 0))} pts)")
             ids = input("Enter comma-separated challenge IDs to copy: ").split(",")
             ids = [i.strip() for i in ids]
             challenges_meta = [ch for ch in challenges_meta if str(ch["id"]) in ids]
@@ -212,14 +227,7 @@ def main():
         new_game = create_game(session, base_url, new_title, args.invite_code)
         print(f"\n✅ Created new hidden game: {new_game['title']} (ID: {new_game['id']})")
         print(f"🔐 Invite Code: {new_game['inviteCode']}")
-
-        for ch_meta in challenges_meta:
-            full = fetch_challenge_config(session, base_url, game_id, ch_meta["id"])
-            created = create_challenge_minimal(session, base_url, new_game["id"], full, ch_meta)
-            update_challenge(session, base_url, new_game["id"], created["id"], full)
-            if full.get("type") == "StaticContainer" and full.get("flags"):
-                duplicate_flags(session, base_url, new_game["id"], created["id"], full["flags"])
-            print(f" → Duplicated: {created['title']}")
+        duplicate_selected_challenges(session, base_url, args.url.rstrip('/'), challenges_meta, new_game["id"])
 
     print("\n🎉 Duplication complete.")
 
