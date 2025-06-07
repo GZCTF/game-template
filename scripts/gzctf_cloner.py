@@ -17,17 +17,17 @@ Description:
 
 Usage:
     Clone a game on the same instance:
-        python3 gzctf_cloner.py --url https://ctf.source.com --token <GZCTF_Token>
+        python3 gzctf_cloner.py --url https://ctf.source.com --token '<GZCTF_Token>'
 
     Create a new game from selected challenges:
-        python3 gzctf_cloner.py --url https://ctf.source.com --token <GZCTF_Token> --newgame
+        python3 gzctf_cloner.py --url https://ctf.source.com --token '<GZCTF_Token>' --newgame
 
     Cross-instance duplication:
-        python3 gzctf_cloner.py --url https://ctf.source.com --token <GZCTF_Token> \
-            --dst-url https://ctf.dest.com --dst-token <GZCTF_Token>
+        python3 gzctf_cloner.py --url https://ctf.source.com --token '<GZCTF_Token>' \
+            --dst-url https://ctf.dest.com --dst-token '<GZCTF_Token>'
 
     Custom invite code:
-        python3 gzctf_cloner.py --url https://ctf.example.com --token <GZCTF_Token> --invite-code MYCODE123
+        python3 gzctf_cloner.py --url https://ctf.example.com --token '<GZCTF_Token>' --invite-code MYCODE123
 """
 
 import requests
@@ -159,11 +159,11 @@ def duplicate_selected_challenges(src_sess, dst_sess, src_base, dst_base, full_u
 def main():
     parser = argparse.ArgumentParser(description="GZCTF Cloner via Token")
     parser.add_argument("--url", required=True, help="Source base URL")
-    parser.add_argument("--token", required=True, help="GZCTF_Token for source session")
+    parser.add_argument("--token", required=True, help="GZCTF_Token cookie value for source session")
     parser.add_argument("--invite-code", help="Custom invite code")
     parser.add_argument("--newgame", action="store_true", help="New game from selected challenges")
     parser.add_argument("--dst-url", help="Destination base URL")
-    parser.add_argument("--dst-token", help="Destination GZCTF_Token")
+    parser.add_argument("--dst-token", help="Destination GZCTF_Token cookie value")
 
     args = parser.parse_args()
 
@@ -179,8 +179,14 @@ def main():
     if args.newgame:
         all_challenges = []
         for g in games:
-            for ch in fetch_challenges(src_sess, src_url, g["id"]):
+            chs = fetch_challenges(src_sess, src_url, g["id"])
+            for ch in chs:
                 ch["game_title"] = g["title"]
+                try:
+                    full = fetch_challenge_config(src_sess, src_url, g["id"], ch["id"])
+                    ch["originalScore"] = full.get("originalScore", ch.get("score", 0))
+                except:
+                    ch["originalScore"] = ch.get("score", 0)
                 all_challenges.append(ch)
 
         if not all_challenges:
@@ -190,7 +196,8 @@ def main():
         all_challenges.sort(key=lambda ch: ch["id"])
         print("\n📦 Available Challenges:")
         for ch in all_challenges:
-            print(f"{ch['id']:>3} | {ch['game_title']:<20} | [{ch.get('category','-')}] {ch['title']} ({ch.get('originalScore', ch.get('score', 0))} pts)")
+            pts = ch.get("originalScore", ch.get("score", 0))
+            print(f"{ch['id']:>3} | {ch['game_title']:<20} | [{ch.get('category','-')}] {ch['title']} ({pts} pts)")
 
         print()
         ids = input("🔢 Enter challenge IDs to clone (comma-separated): ").split(",")
@@ -224,7 +231,8 @@ def main():
         print(f"\n🧩 Found {len(chs)} challenges.")
         if input("💭 Duplicate all? (y/n): ").strip().lower() != "y":
             for ch in chs:
-                print(f"{ch['id']:>3}: [{ch.get('category','-')}] {ch['title']} ({ch.get('originalScore', ch.get('score', 0))} pts)")
+                pts = ch.get("score", 0)
+                print(f"{ch['id']:>3}: [{ch.get('category','-')}] {ch['title']} ({pts} pts)")
             ids = input("🔢 IDs to copy: ").split(",")
             chs = [c for c in chs if str(c["id"]) in map(str.strip, ids)]
 
