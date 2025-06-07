@@ -182,6 +182,7 @@ def main():
 
     else:
         print("\nAvailable Games:")
+        games.sort(key=lambda g: g["id"])  # or use g["title"].lower() to sort alphabetically
         for g in games:
             print(f"{g['id']}: {g['title']}")
 
@@ -197,8 +198,12 @@ def main():
         dup_all = input("Duplicate all challenges? (y/n): ").strip().lower()
         if dup_all != 'y':
             print("\nAvailable Challenges:")
-            for ch in sorted(challenges_meta, key=lambda ch: ch["id"]):
-                print(f"{ch['id']}: {ch['title']}")
+            challenges_meta.sort(key=lambda ch: ch["id"])
+            for ch in challenges_meta:
+                title = ch["title"]
+                cid = ch["id"]
+                cat = ch.get("category", "Uncategorized")
+                print(f"{cid}: [{cat}] {title}")
             ids = input("Enter comma-separated challenge IDs to copy: ").split(",")
             ids = [i.strip() for i in ids]
             challenges_meta = [ch for ch in challenges_meta if str(ch["id"]) in ids]
